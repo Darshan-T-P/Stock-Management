@@ -9,6 +9,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../../contexts/AuthContext";
 import { db } from "../../firebase";
+import { adjustProductStock } from "../../utils/stockUtils";
 
 export default function SalesManagement() {
   const { profile } = useAuth();
@@ -22,6 +23,31 @@ export default function SalesManagement() {
   const [salePrice, setSalePrice] = useState(""); // per unit sale price (optional override)
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  async function processSale(saleData) {
+  if (!profile?.storeId) throw new Error("Store ID missing");
+
+  // Adjust stock for each product sold
+  for (const product of saleData.products) {
+    await adjustProductStock(
+      profile.storeId,
+      product.id,
+      -1, // decrement 1
+      { amountSold: (product.amountSold || 0) + 1 }
+    );
+  }
+
+  // Record sale
+  const salesCol = collection(db, "stores", profile.storeId, "sales");
+  const newSaleRef = await addDoc(salesCol, {
+    customer: saleData.customer,
+    products: saleData.products.map((p) => p.name),
+    total: saleData.total,
+    date: new Date().toISOString().slice(0, 10),
+    status: "Completed",
+  });
+
+  return { success: true, saleId: newSaleRef.id };
+}
 
   // Fetch products on load or store change
   useEffect(() => {

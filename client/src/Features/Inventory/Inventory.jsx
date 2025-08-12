@@ -8,11 +8,10 @@ export default function Inventory() {
   const { currentUser, profile } = useAuth();
   const [products, setProducts] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [sellingPrices, setSellingPrices] = useState({}); // productId -> selling price
+  const [sellingPrices, setSellingPrices] = useState({});
 
   useEffect(() => {
     if (!profile?.storeId) return;
-
     const fetchProducts = async () => {
       const productsCol = collection(db, "stores", profile.storeId, "products");
       const productsSnapshot = await getDocs(productsCol);
@@ -20,20 +19,25 @@ export default function Inventory() {
         id: doc.id,
         ...doc.data(),
       }));
-      setProducts(prods);
 
-      // Initialize selling prices with existing price or purchase price
+      // Clamp invalid/negative stock to 0 before setting state
+      const sanitizedProducts = prods.map(p => ({
+        ...p,
+        stock: Math.max(p.stock || 0, 0), // ensure >= 0
+        price: Math.max(p.price || 0, 0)  // ensure positive price too
+      }));
+
+      setProducts(sanitizedProducts);
+
       const initialPrices = {};
-      prods.forEach((p) => {
+      sanitizedProducts.forEach((p) => {
         initialPrices[p.id] = p.sellingPrice ?? p.price;
       });
       setSellingPrices(initialPrices);
 
-      // Compute low stock alerts
-      const lowStockAlerts = prods.filter((p) => p.stock > 0 && p.stock < 20);
+      const lowStockAlerts = sanitizedProducts.filter((p) => p.stock > 0 && p.stock < 20);
       setAlerts(lowStockAlerts);
 
-      // Send notifications for low stock products
       if (currentUser) {
         for (const product of lowStockAlerts) {
           await sendInAppNotification(
@@ -45,11 +49,9 @@ export default function Inventory() {
         }
       }
     };
-
     fetchProducts();
   }, [profile, currentUser]);
 
-  // Handle selling price change in UI
   const handlePriceChange = (productId, value) => {
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
       setSellingPrices((prev) => ({
@@ -59,7 +61,6 @@ export default function Inventory() {
     }
   };
 
-  // Update Firestore with new selling price on blur or Enter key press
   const updateSellingPrice = async (productId) => {
     const newPriceStr = sellingPrices[productId];
     const newPrice = parseFloat(newPriceStr);
@@ -67,13 +68,11 @@ export default function Inventory() {
       alert("Invalid price");
       return;
     }
-
     try {
       const prodRef = doc(db, "stores", profile.storeId, "products", productId);
       await updateDoc(prodRef, {
         sellingPrice: newPrice,
       });
-
       setProducts((prev) =>
         prev.map((p) =>
           p.id === productId ? { ...p, sellingPrice: newPrice } : p
@@ -85,19 +84,20 @@ export default function Inventory() {
     }
   };
 
-  // Profit calculation: (sellingPrice - purchasePrice) * stock
+  // Clamp negative stock inside profit calculation too
   const profitForProduct = (p) => {
+    const safeStock = Math.max(p.stock || 0, 0);
     const sellPrice = parseFloat(sellingPrices[p.id]) ?? (p.sellingPrice ?? p.price);
-    return ((sellPrice - p.price) * p.stock).toFixed(2);
+    const safeSellPrice = Math.max(sellPrice || 0, 0);
+    return ((safeSellPrice - p.price) * safeStock).toFixed(2);
   };
 
-  // High demand logic: if amountSold > threshold (e.g., 50 units)
   const isHighDemand = (product) => (product.amountSold || 0) >= 50;
 
-  const totalStock = products.reduce((sum, p) => sum + p.stock, 0);
+  const totalStock = products.reduce((sum, p) => sum + Math.max(p.stock || 0, 0), 0);
   const lowStockCount = products.filter((p) => p.stock > 0 && p.stock < 20).length;
   const outOfStockCount = products.filter((p) => p.stock === 0).length;
-  const totalValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
+  const totalValue = products.reduce((sum, p) => sum + Math.max(p.price, 0) * Math.max(p.stock, 0), 0);
   const totalProducts = products.length;
 
   return (
@@ -117,14 +117,12 @@ export default function Inventory() {
         </div>
       )}
 
-      {/* Legend for high demand */}
       <div className="mb-2 text-xs text-gray-200">
         <span className="inline-flex items-center">
           <span className="text-blue-400 text-lg mr-1">📈</span> High Demand Product (popular with customers)
         </span>
       </div>
 
-      {/* Summary Boxes */}
       <div className="grid grid-cols-6 gap-4 mb-8">
         <div className="bg-[#012A2D] p-4 rounded-lg shadow text-center">
           <p className="text-lg font-bold">Total Stock</p>
@@ -160,7 +158,6 @@ export default function Inventory() {
         </div>
       </div>
 
-      {/* Inventory Table */}
       <div className="bg-[#012A2D] p-4 rounded-lg shadow">
         <table className="w-full border-collapse">
           <thead>
@@ -175,7 +172,8 @@ export default function Inventory() {
           </thead>
           <tbody>
             {products.map((product) => {
-              const isOutOfStock = product.stock === 0;
+              const isOutOfStock = product.stock <= 0;
+              const safeStock = Math.max(product.stock || 0, 0);
               const sellPriceValue = sellingPrices[product.id] ?? product.sellingPrice ?? product.price;
               const highDemand = isHighDemand(product);
 
@@ -187,8 +185,8 @@ export default function Inventory() {
                       <span title="High Demand" className="ml-1 text-blue-400 text-lg">📈</span>
                     )}
                   </td>
-                  <td className="p-3">{product.stock}</td>
-                  <td className="p-3">₹{product.price.toFixed(2)}</td>
+                  <td className="p-3">{safeStock}</td>
+                  <td className="p-3">₹{Math.max(product.price, 0).toFixed(2)}</td>
                   <td className="p-3">
                     <input
                       type="text"
@@ -201,7 +199,7 @@ export default function Inventory() {
                     />
                   </td>
                   <td className="p-3">
-                    ₹{profitForProduct(product)}
+                    ₹{Math.max(profitForProduct(product), 0)}
                   </td>
                   <td className="p-3">
                     <span

@@ -1,106 +1,172 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebase";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend,
+} from "recharts";
 
-export default function DashboardPage() {
+const COLORS = [
+  "#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A569BD", "#5DADE2", "#52BE80",
+];
+
+export default function Dashboard() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch inventory products
+  useEffect(() => {
+    async function fetchInventory() {
+      try {
+        const productsCol = collection(db, "stores", "wqRy9rJL5u7otgFTMFAs", "products"); // Replace YOUR_STORE_ID dynamically if needed
+        const snapshot = await getDocs(productsCol);
+        const inventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setProducts(inventory);
+      } catch (err) {
+        console.error("Failed to fetch products for dashboard", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchInventory();
+  }, []);
+
+  // Calculate summary stats
+  const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+  const lowStockCount = products.filter(p => p.stock > 0 && p.stock < 20).length;
+  const outOfStockCount = products.filter(p => p.stock === 0).length;
+  const totalProducts = products.length;
+  const totalValue = products.reduce((sum, p) => sum + ((p.price ?? 0) * (p.stock ?? 0)), 0);
+  const totalRevenuePotential = products.reduce(
+    (sum, p) => sum + ((p.sellingPrice ?? p.price ?? 0) * (p.stock ?? 0)),
+    0
+  );
+
+  // Top 5 popular products by amountSold
+  const topProducts = [...products]
+    .filter(p => p.amountSold > 0)
+    .sort((a, b) => b.amountSold - a.amountSold)
+    .slice(0, 5);
+
+  // Data for bar chart: stock levels of top products
+  const barChartData = topProducts.map(p => ({
+    name: p.name.length > 15 ? p.name.slice(0, 15) + "..." : p.name,
+    stock: p.stock || 0,
+    sold: p.amountSold || 0,
+  }));
+
+  // Optional: Pie chart showing stock distribution by category (modify if you have category)
+  const categories = {};
+  products.forEach(p => {
+    const cat = p.category || "Uncategorized";
+    categories[cat] = (categories[cat] || 0) + (p.stock || 0);
+  });
+  const pieChartData = Object.entries(categories).map(([name, value]) => ({ name, value }));
+
   return (
-    <div className="min-h-screen bg-[#012A2D] text-white p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
-        
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Total Products</p>
-                <p className="text-2xl font-bold">1,234</p>
-              </div>
-              <div className="text-3xl">🛒</div>
-            </div>
-          </div>
-          
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Total Sales</p>
-                <p className="text-2xl font-bold">$45,678</p>
-              </div>
-              <div className="text-3xl">💰</div>
-            </div>
-          </div>
-          
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Pending Orders</p>
-                <p className="text-2xl font-bold">23</p>
-              </div>
-              <div className="text-3xl">📋</div>
-            </div>
-          </div>
-          
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-300 text-sm">Low Stock Items</p>
-                <p className="text-2xl font-bold">7</p>
-              </div>
-              <div className="text-3xl">⚠️</div>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen p-6 bg-[#012A2D] text-white max-w-7xl mx-auto">
+      <h1 className="text-4xl font-bold mb-8">Inventory Dashboard</h1>
 
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Recent Orders</h2>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-[#012A2D] rounded">
-                <div>
-                  <p className="font-medium">Order #1234</p>
-                  <p className="text-sm text-gray-300">2 items • $156.00</p>
-                </div>
-                <span className="text-green-400 text-sm">Completed</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-[#012A2D] rounded">
-                <div>
-                  <p className="font-medium">Order #1235</p>
-                  <p className="text-sm text-gray-300">1 item • $89.00</p>
-                </div>
-                <span className="text-yellow-400 text-sm">Pending</span>
-              </div>
-              <div className="flex items-center justify-between p-3 bg-[#012A2D] rounded">
-                <div>
-                  <p className="font-medium">Order #1236</p>
-                  <p className="text-sm text-gray-300">3 items • $234.00</p>
-                </div>
-                <span className="text-blue-400 text-sm">Processing</span>
-              </div>
-            </div>
+      {loading ? (
+        <p>Loading data...</p>
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-6 mb-10">
+            <SummaryCard title="Total Stock" value={totalStock} icon="📦" />
+            <SummaryCard title="Low Stock" value={lowStockCount} icon="⚠️" />
+            <SummaryCard title="Out of Stock" value={outOfStockCount} icon="🛑" />
+            <SummaryCard title="Total Products" value={totalProducts} icon="📋" />
+            <SummaryCard title="Stock Value (₹)" value={totalValue.toLocaleString("en-IN")} icon="💰" />
+            <SummaryCard
+              title="Potential Revenue (₹)"
+              value={totalRevenuePotential.toLocaleString("en-IN")}
+              icon="📈"
+            />
           </div>
 
-          <div className="bg-[#435355] p-6 rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <button className="p-4 bg-[#012A2D] rounded-lg hover:bg-[#1a3a3d] transition-colors">
-                <div className="text-2xl mb-2">➕</div>
-                <p className="text-sm">Add Product</p>
-              </button>
-              <button className="p-4 bg-[#012A2D] rounded-lg hover:bg-[#1a3a3d] transition-colors">
-                <div className="text-2xl mb-2">📋</div>
-                <p className="text-sm">New Order</p>
-              </button>
-              <button className="p-4 bg-[#012A2D] rounded-lg hover:bg-[#1a3a3d] transition-colors">
-                <div className="text-2xl mb-2">📊</div>
-                <p className="text-sm">View Reports</p>
-              </button>
-              <button className="p-4 bg-[#012A2D] rounded-lg hover:bg-[#1a3a3d] transition-colors">
-                <div className="text-2xl mb-2">⚙️</div>
-                <p className="text-sm">Settings</p>
-              </button>
+          {/* Top Products Section */}
+          <section className="mb-10">
+            <h2 className="text-xl font-semibold mb-4">Top 5 Popular Products</h2>
+            {topProducts.length === 0 ? (
+              <p>No sales data available.</p>
+            ) : (
+              <ul className="space-y-3">
+                {topProducts.map((product) => (
+                  <li
+                    key={product.id}
+                    className="bg-[#023737] p-4 rounded flex justify-between items-center"
+                  >
+                    <span className="font-medium">{product.name}</span>
+                    <span>Sold: {product.amountSold}</span>
+                    <span>Stock: {product.stock ?? 0}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Charts Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Bar Chart - Stock and Sales of Top Products */}
+            <div className="bg-[#023737] p-6 rounded shadow">
+              <h3 className="text-lg font-semibold mb-4">Top Products - Stock vs Sales</h3>
+              {barChartData.length === 0 ? (
+                <p>No data to display.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={barChartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="stock" fill="#82ca9d" name="Stock" />
+                    <Bar dataKey="sold" fill="#8884d8" name="Sold" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            {/* Pie Chart - Stock Distribution by Category */}
+            <div className="bg-[#023737] p-6 rounded shadow">
+              <h3 className="text-lg font-semibold mb-4">Stock Distribution by Category</h3>
+              {pieChartData.length === 0 ? (
+                <p>No category data available.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={pieChartData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {pieChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Legend />
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
-} 
+}
+
+// Summary card component
+function SummaryCard({ title, value, icon }) {
+  return (
+    <div className="bg-[#023737] p-6 rounded shadow text-center flex flex-col items-center">
+      <div className="text-4xl mb-2">{icon}</div>
+      <div className="text-xl font-bold">{value}</div>
+      <div className="text-gray-400">{title}</div>
+    </div>
+  );
+}

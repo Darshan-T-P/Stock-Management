@@ -63,7 +63,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
     { path: "/dashboard", label: "Dashboard", icon: iconMap.dashboard },
     { path: "/products-management", label: "Products", icon: iconMap.productsManagement },
     { path: "/inventory", label: "Inventory", icon: iconMap.inventory },
-    { path: "/purchase-restock", label: "Restock", icon: iconMap.purchaseRestock },
+    // { path: "/purchase-restock", label: "Restock", icon: iconMap.purchaseRestock },
     { path: "/sales", label: "Sales", icon: iconMap.sales },
     { path: "/orders", label: "Orders", icon: iconMap.orders },
     { path: "/suppliers", label: "Suppliers", icon: iconMap.suppliers },
