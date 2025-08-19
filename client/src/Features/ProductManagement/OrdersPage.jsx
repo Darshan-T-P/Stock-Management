@@ -11,6 +11,7 @@ export default function OrdersPage() {
   // State for orders and products fetched from Firestore
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Modal & form states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -25,7 +26,10 @@ export default function OrdersPage() {
 
   // Fetch orders and products when profile.storeId changes
   useEffect(() => {
-    if (!profile?.storeId) return;
+    if (!profile?.storeId) {
+      setLoading(false);
+      return;
+    }
 
     const fetchOrders = async () => {
       try {
@@ -37,6 +41,9 @@ export default function OrdersPage() {
         setOrders(ordersData);
       } catch (err) {
         console.error("Failed to fetch orders:", err);
+        setOrders([]); // Set empty array on error
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -49,6 +56,7 @@ export default function OrdersPage() {
         setProducts(productsData);
       } catch (err) {
         console.error("Failed to fetch products:", err);
+        setProducts([]); // Set empty array on error
       }
     };
 
@@ -58,20 +66,22 @@ export default function OrdersPage() {
 
   // Helper to add a product to order items
   const addItemToOrder = (product) => {
-    const existing = newOrder.items.find(item => item.name === product.name);
+    if (!product || !product.name || !product.price) return;
+    
+    const existing = newOrder.items?.find(item => item.name === product.name);
     if (existing) {
       setNewOrder(prev => ({
         ...prev,
-        items: prev.items.map(item =>
+        items: (prev.items || []).map(item =>
           item.name === product.name
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: (item.quantity || 0) + 1 }
             : item
         ),
       }));
     } else {
       setNewOrder(prev => ({
         ...prev,
-        items: [...prev.items, { name: product.name, quantity: 1, price: product.price }],
+        items: [...(prev.items || []), { name: product.name, quantity: 1, price: product.price }],
       }));
     }
   };
@@ -79,7 +89,7 @@ export default function OrdersPage() {
   const removeItemFromOrder = (name) => {
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.filter(item => item.name !== name),
+      items: (prev.items || []).filter(item => item.name !== name),
     }));
   };
 
@@ -90,7 +100,7 @@ export default function OrdersPage() {
     }
     setNewOrder(prev => ({
       ...prev,
-      items: prev.items.map(item =>
+      items: (prev.items || []).map(item =>
         item.name === name
           ? { ...item, quantity: Number(quantity) }
           : item
@@ -100,12 +110,13 @@ export default function OrdersPage() {
 
   // Calculate total order amount
   const calculateTotal = () => {
-    return newOrder.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    if (!newOrder.items || !Array.isArray(newOrder.items)) return 0;
+    return newOrder.items.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
   };
 
   // Validate and submit new order to Firestore
   const handleAddOrder = async () => {
-    if (!newOrder.customer.trim() || !newOrder.email.trim() || newOrder.items.length === 0) {
+    if (!newOrder.customer.trim() || !newOrder.email.trim() || !newOrder.items || newOrder.items.length === 0) {
       alert("Please fill all mandatory fields and add at least one item.");
       return;
     }
@@ -148,6 +159,8 @@ export default function OrdersPage() {
 
   // Utility: map order status to colors
   const getStatusColor = (status) => {
+    if (!status) return "bg-gray-500 text-white";
+    
     switch (status) {
       case "Processing": return "bg-blue-500 text-white";
       case "Shipped": return "bg-yellow-500 text-black";
@@ -174,19 +187,19 @@ export default function OrdersPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-[#1F3A44] p-6 rounded-lg">
             <p className="text-gray-300 text-sm">Total Orders</p>
-            <p className="text-3xl font-bold">{orders.length}</p>
+            <p className="text-3xl font-bold">{orders ? orders.length : 0}</p>
           </div>
           <div className="bg-[#1F3A44] p-6 rounded-lg">
             <p className="text-gray-300 text-sm">Processing</p>
-            <p className="text-3xl font-bold">{orders.filter(o => o.status === "Processing").length}</p>
+            <p className="text-3xl font-bold">{orders ? orders.filter(o => o.status && o.status === "Processing").length : 0}</p>
           </div>
           <div className="bg-[#1F3A44] p-6 rounded-lg">
             <p className="text-gray-300 text-sm">Shipped</p>
-            <p className="text-3xl font-bold">{orders.filter(o => o.status === "Shipped").length}</p>
+            <p className="text-3xl font-bold">{orders ? orders.filter(o => o.status && o.status === "Shipped").length : 0}</p>
           </div>
           <div className="bg-[#1F3A44] p-6 rounded-lg">
             <p className="text-gray-300 text-sm">Delivered</p>
-            <p className="text-3xl font-bold">{orders.filter(o => o.status === "Delivered").length}</p>
+            <p className="text-3xl font-bold">{orders ? orders.filter(o => o.status && o.status === "Delivered").length : 0}</p>
           </div>
         </div>
 
@@ -195,6 +208,12 @@ export default function OrdersPage() {
           <div className="p-6 border-b border-[#0B1D25]">
             <h2 className="text-xl font-semibold">Recent Orders</h2>
           </div>
+          {loading ? (
+            <div className="p-6 text-center text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-2"></div>
+              Loading orders...
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full">
               <thead className="bg-[#0B1D25]">
@@ -209,20 +228,20 @@ export default function OrdersPage() {
                 </tr>
               </thead>
               <tbody>
-                {orders.length === 0 ? (
+                {!orders || orders.length === 0 ? (
                   <tr>
                     <td colSpan="7" className="p-6 text-center text-gray-400">No orders found.</td>
                   </tr>
-                ) : orders.map(order => (
+                ) : (orders || []).map(order => (
                   <tr key={order.id} className="hover:bg-[#0F2530] transition-colors">
                     <td className="p-3">{order.id}</td>
-                    <td className="p-3 font-semibold">{order.customer}</td>
-                    <td className="p-3">{order.email}</td>
-                    <td className="p-3">{order.items.length} item{order.items.length > 1 ? "s" : ""}</td>
-                    <td className="p-3">₹{order.total.toFixed(2)}</td>
+                    <td className="p-3 font-semibold">{order.customer || 'N/A'}</td>
+                    <td className="p-3">{order.email || 'N/A'}</td>
+                    <td className="p-3">{order.items && order.items.length ? `${order.items.length} item${order.items.length > 1 ? "s" : ""}` : '0 items'}</td>
+                    <td className="p-3">₹{order.total ? order.total.toFixed(2) : '0.00'}</td>
                     <td className="p-3">
   <select
-    value={order.status}
+    value={order.status || 'Processing'}
     onChange={async (e) => {
       const newStatus = e.target.value;
       try {
@@ -231,7 +250,7 @@ export default function OrdersPage() {
         });
         // Optimistically update UI
         setOrders((prev) =>
-          prev.map(o => o.id === order.id ? { ...o, status: newStatus } : o)
+          (prev || []).map(o => o.id === order.id ? { ...o, status: newStatus } : o)
         );
       } catch (error) {
         alert("Failed to update status: " + error.message);
@@ -247,12 +266,13 @@ export default function OrdersPage() {
   </select>
 </td>
 
-                    <td className="p-3">{order.date}</td>
+                    <td className="p-3">{order.date || 'N/A'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
         {/* Add Order Modal */}
@@ -326,17 +346,17 @@ export default function OrdersPage() {
                 <div>
                   <label className="block mb-2 font-semibold">Available Products</label>
                   <div className="max-h-48 overflow-auto border border-gray-700 rounded p-2 bg-[#1F3A44]">
-                    {products.length === 0 ? (
+                    {!products || products.length === 0 ? (
                       <p className="text-gray-400">No products found</p>
                     ) : (
-                      products.map(product => (
+                      (products || []).map(product => (
                         <button
                           type="button"
                           key={product.id}
                           className="w-full text-left p-1 hover:bg-[#35627f] rounded"
                           onClick={() => addItemToOrder(product)}
                         >
-                          {product.name} - ₹{product.price.toFixed(2)} (Stock: {product.stock})
+                          {product.name} - ₹{product.price ? product.price.toFixed(2) : '0.00'} (Stock: {product.stock || 0})
                         </button>
                       ))
                     )}
@@ -344,19 +364,19 @@ export default function OrdersPage() {
 
                   <label className="block mt-6 mb-2 font-semibold">Selected Items</label>
                   <div className="max-h-48 overflow-auto border border-gray-700 rounded p-2 bg-[#1F3A44]">
-                    {newOrder.items.length === 0 ? (
+                    {!newOrder.items || newOrder.items.length === 0 ? (
                       <p className="text-gray-400">No items selected</p>
                     ) : (
-                      newOrder.items.map(item => (
+                      (newOrder.items || []).map(item => (
                         <div key={item.name} className="flex items-center justify-between mb-2">
                           <div>
-                            <p>{item.name}</p>
-                            <p className="text-sm text-gray-300">₹{item.price.toFixed(2)} each</p>
+                            <p>{item.name || 'Unknown Item'}</p>
+                            <p className="text-sm text-gray-300">₹{item.price ? item.price.toFixed(2) : '0.00'} each</p>
                           </div>
                           <input
                             type="number"
                             min={1}
-                            value={item.quantity}
+                            value={item.quantity || 1}
                             onChange={e => updateItemQuantity(item.name, e.target.value)}
                             className="w-16 p-1 rounded bg-[#35627f] text-white border border-gray-600"
                           />

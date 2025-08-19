@@ -17,6 +17,7 @@ import AnalyticsPage from "./Features/Analytics/AnalyticsPage";
 import LogisticsPage from "./Features/Analytics/LogisticsPage";
 import ForgotPassword from "./Features/Auth/forgotpassword";
 import PrivateRoute from "./components/PrivateRoute";
+import ChatbotButton from "./ChatbotButton";
 
 function App() {
   return (
@@ -49,6 +50,8 @@ function App() {
   </Route>
 </Routes>
 
+        {/* Global Chatbot Button - Available on all pages */}
+        <ChatbotButton />
       </AuthProvider>
     </Router>
   );

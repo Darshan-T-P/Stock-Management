@@ -1,9 +1,11 @@
 /* eslint-disable no-undef */
 // public/firebase-messaging-sw.js
-import firebase from "firebase/app";
+
+// Import Firebase scripts using importScripts (required for service workers)
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
+// Initialize Firebase
 firebase.initializeApp({
   apiKey: "AIzaSyB7S8JDdjW4VotslPVgLEFOi1X_oRCs0u0",
   authDomain: "stock-management-1823d.firebaseapp.com",

@@ -11,35 +11,35 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
-// Master product list with defined prices
+// Master product list with defined prices and brand names
 const masterProducts = [
-  { id: "milk", name: "Milk", price: 3.99 },
-  { id: "bread", name: "Bread", price: 2.49 },
-  { id: "eggs", name: "Eggs", price: 4.99 },
-  { id: "rice", name: "Rice", price: 8.99 },
-  { id: "pasta", name: "Pasta", price: 2.99 },
-  { id: "flour", name: "Flour", price: 4.49 },
-  { id: "sugar", name: "Sugar", price: 3.99 },
-  { id: "salt", name: "Salt", price: 1.99 },
-  { id: "apples", name: "Apples", price: 1.99 },
-  { id: "bananas", name: "Bananas", price: 1.49 },
-  { id: "oranges", name: "Oranges", price: 2.99 },
-  { id: "tomatoes", name: "Tomatoes", price: 3.49 },
-  { id: "potatoes", name: "Potatoes", price: 4.99 },
-  { id: "onions", name: "Onions", price: 2.99 },
-  { id: "carrots", name: "Carrots", price: 1.99 },
-  { id: "chicken", name: "Chicken", price: 12.99 },
-  { id: "beef", name: "Beef", price: 15.99 },
-  { id: "fish", name: "Fish", price: 18.99 },
-  { id: "cheese", name: "Cheese", price: 6.99 },
-  { id: "yogurt", name: "Yogurt", price: 4.99 },
-  { id: "butter", name: "Butter", price: 5.99 },
-  { id: "cooking_oil", name: "Cooking Oil", price: 450.0 },
-  { id: "tea", name: "Tea", price: 180.0 },
-  { id: "coffee", name: "Coffee", price: 250.0 },
-  { id: "spices", name: "Spices", price: 150.0 },
-  { id: "nuts", name: "Nuts", price: 350.0 },
-  { id: "dried_fruits", name: "Dried Fruits", price: 400.0 },
+  { id: "milk", name: "Milk", price: 3.99, brands: ["Amul", "Mother Dairy", "Nestlé", "Aavin", "Heritage"] },
+  { id: "bread", name: "Bread", price: 2.49, brands: ["Britannia", "Harvest Gold", "Modern", "English Oven"] },
+  { id: "eggs", name: "Eggs", price: 4.99, brands: ["Suguna", "Keppy", "Farm Fresh"] },
+  { id: "rice", name: "Rice", price: 8.99, brands: ["India Gate", "Daawat", "Fortune", "Kohinoor"] },
+  { id: "pasta", name: "Pasta", price: 2.99, brands: ["Barilla", "Borges", "Del Monte", "Weikfield"] },
+  { id: "flour", name: "Flour", price: 4.49, brands: ["Aashirvaad", "Pillsbury", "Annapurna"] },
+  { id: "sugar", name: "Sugar", price: 3.99, brands: ["Dhampure", "Madhur", "Trust"] },
+  { id: "salt", name: "Salt", price: 1.99, brands: ["Tata Salt", "Aashirvaad", "Catch"] },
+  { id: "apples", name: "Apples", price: 1.99, brands: ["Washington", "Kinnaur", "Fuji"] },
+  { id: "bananas", name: "Bananas", price: 1.49, brands: ["Yelakki", "Robusta", "Cavendish"] },
+  { id: "oranges", name: "Oranges", price: 2.99, brands: ["Nagpur", "Kinnow", "Valencia"] },
+  { id: "tomatoes", name: "Tomatoes", price: 3.49, brands: ["Heirloom", "Cherry", "Roma"] },
+  { id: "potatoes", name: "Potatoes", price: 4.99, brands: ["Chipsona", "Jalander", "Pukhraj"] },
+  { id: "onions", name: "Onions", price: 2.99, brands: ["Nashik Red", "White Onion"] },
+  { id: "carrots", name: "Carrots", price: 1.99, brands: ["Ooty", "Nantes"] },
+  { id: "chicken", name: "Chicken", price: 12.99, brands: ["Venky's", "Godrej Real Good", "Suguna"] },
+  { id: "beef", name: "Beef", price: 15.99, brands: ["Local Fresh", "Angus"] },
+  { id: "fish", name: "Fish", price: 18.99, brands: ["Rohu", "Katla", "Pomfret", "Salmon"] },
+  { id: "cheese", name: "Cheese", price: 6.99, brands: ["Amul", "Britannia", "Go Cheese"] },
+  { id: "yogurt", name: "Yogurt", price: 4.99, brands: ["Mother Dairy", "Amul", "Nestlé"] },
+  { id: "butter", name: "Butter", price: 5.99, brands: ["Amul", "Britannia", "Weikfield"] },
+  { id: "cooking_oil", name: "Cooking Oil", price: 450.0, brands: ["Fortune", "Saffola", "Dhara", "Gemini"] },
+  { id: "tea", name: "Tea", price: 180.0, brands: ["Tata Tea", "Brooke Bond Red Label", "Lipton", "Tetley"] },
+  { id: "coffee", name: "Coffee", price: 250.0, brands: ["Nescafé", "Bru", "Levista"] },
+  { id: "spices", name: "Spices", price: 150.0, brands: ["MDH", "Everest", "Catch", "Badshah"] },
+  { id: "nuts", name: "Nuts", price: 350.0, brands: ["Happilo", "Nutraj", "Tulsi"] },
+  { id: "dried_fruits", name: "Dried Fruits", price: 400.0, brands: ["Happilo", "Tulsi", "Solimo"] },
 ];
 
 // Helper to get product price from master list by product name
@@ -86,7 +86,7 @@ export default function SuppliersPage() {
     return () => unsubscribe();
   }, []);
 
-  const availableProducts = masterProducts.map((p) => p.name);
+  const availableProducts = masterProducts;
 
   const addProductToSupplier = (product) => {
     if (!newSupplier.products.includes(product)) {
@@ -512,15 +512,24 @@ function SupplierForm({ supplier, setSupplier, availableProducts, addProduct, re
 
         <label className="block mb-2 font-semibold">Available Products</label>
         <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto">
-          {availableProducts.map((product, idx) => (
+          {availableProducts.map((prod, idx) => (
             <button
               key={idx}
               type="button"
-              onClick={() => addProduct(product)}
-              disabled={supplier.products.includes(product)}
-              className="bg-[#012A2D] p-2 rounded text-sm hover:bg-[#2a3a3c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => addProduct(prod.name)}
+              disabled={supplier.products.includes(prod.name)}
+              className="bg-[#012A2D] p-2 rounded text-sm hover:bg-[#2a3a3c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-left"
             >
-              {product} (${getProductPrice(product).toFixed(2)})
+              <div className="font-semibold">{prod.name} (${(prod.price ?? getProductPrice(prod.name)).toFixed(2)})</div>
+              {Array.isArray(prod.brands) && prod.brands.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {prod.brands.map((brand, bIdx) => (
+                    <span key={bIdx} className="px-1 py-0.5 bg-[#023737] rounded text-[10px] text-gray-200">
+                      {brand}
+                    </span>
+                  ))}
+                </div>
+              )}
             </button>
           ))}
         </div>
